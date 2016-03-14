@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -8,10 +8,11 @@
     <ProjectGuid>{802C00D9-1703-4679-BE34-3BE8F93981C8}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SagePay.IntegrationKit.DotNet</RootNamespace>
-    <AssemblyName>SagePay.IntegrationKit.DotNet</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <RootNamespace>SagePay.IntegrationKit</RootNamespace>
+    <AssemblyName>SagePay.IntegrationKit</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -29,6 +31,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.VisualBasic" />
@@ -43,8 +46,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ApiRegex.cs" />
+    <Compile Include="ApiRegexAttr.cs" />
+    <Compile Include="ApiRegexExtension.cs" />
     <Compile Include="CardType.cs" />
     <Compile Include="CheckResult.cs" />
+    <Compile Include="ProtocolFieldAttr.cs" />
+    <Compile Include="ProtocolFieldExtension.cs" />
+    <Compile Include="ProtocolMessageAttribute.cs" />
+    <Compile Include="ProtocolMessageExtension.cs" />
+    <Compile Include="ProtocolTypeAttr.cs" />
+    <Compile Include="ProtocolTypeExtension.cs" />
+    <Compile Include="ProtocolVersionAttr.cs" />
+    <Compile Include="ProtocolVersionExtension.cs" />
     <Compile Include="SagePayIntegration.cs" />
     <Compile Include="DataObject.cs" />
     <Compile Include="Messages\IAbortRequest.cs" />
@@ -88,29 +101,12 @@
     <Compile Include="ProtocolField.cs" />
     <Compile Include="ProtocolVersion.cs" />
     <Compile Include="ResponseStatus.cs" />
+    <Compile Include="SagePayProtocolVersion.cs" />
+    <Compile Include="SagePayProtocolVersionExtension.cs" />
     <Compile Include="ThreeDSecureStatus.cs" />
     <Compile Include="TransactionType.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="bin\Release\" />
-    <Folder Include="obj\Debug\TempPE\" />
-    <Folder Include="obj\Release\TempPE\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="obj\Debug\DesignTimeResolveAssemblyReferencesInput.cache" />
-    <None Include="obj\Release\DesignTimeResolveAssemblyReferencesInput.cache" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="bin\Debug\SagePay.IntegrationKit.DotNet.dll" />
-    <Content Include="bin\Debug\SagePay.IntegrationKit.DotNet.pdb" />
-    <Content Include="obj\Debug\SagePay.IntegrationKit.csproj.FileListAbsolute.txt" />
-    <Content Include="obj\Debug\SagePay.IntegrationKit.DotNet.csproj.FileListAbsolute.txt" />
-    <Content Include="obj\Debug\SagePay.IntegrationKit.DotNet.dll" />
-    <Content Include="obj\Debug\SagePay.IntegrationKit.DotNet.pdb" />
-    <Content Include="obj\Release\SagePay.IntegrationKit.csproj.FileListAbsolute.txt" />
-    <Content Include="obj\Release\SagePay.IntegrationKit.DotNet.dll" />
-    <Content Include="obj\Release\SagePay.IntegrationKit.DotNet.pdb" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

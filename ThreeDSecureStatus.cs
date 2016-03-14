@@ -12,6 +12,7 @@
         INCOMPLETE,
         MALFORMED,
         INVALID,
-        ERROR
+        ERROR,
+        NOTAVAILABLE
     }
 }

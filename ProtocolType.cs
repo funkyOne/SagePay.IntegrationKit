@@ -1,7 +1,4 @@
-﻿using System;
-using System.Reflection;
-
-namespace SagePay.IntegrationKit
+﻿namespace SagePay.IntegrationKit
 {
     public enum ProtocolType
     {
@@ -107,55 +104,5 @@ namespace SagePay.IntegrationKit
         DOB,
         [ProtocolTypeAttr(ApiRegex.ANY, 1, 40)]
         REFERRER_ID
-    }
-
-
-    class ProtocolTypeAttr : Attribute
-    {
-        internal ProtocolTypeAttr(ApiRegex apiRegex, int minLength = 0, int maxLength = 0)
-        {
-            this.ApiRegex = apiRegex;
-            this.MinLength = minLength;
-            this.MaxLength = maxLength;
-
-        }
-
-        internal ProtocolTypeAttr(Type type)
-        {
-            this.Type = type;
-        }
-
-        public ApiRegex ApiRegex { get; private set; }
-        public int MinLength { get; private set; }
-        public int MaxLength { get; private set; }
-        public Type Type { get; private set; }
-    }
-
-    public static class ProtocolTypeExtension
-    {
-        public static ApiRegex ApiRegex(this ProtocolType p)
-        {
-            return ((ProtocolTypeAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolTypeAttr))).ApiRegex;
-        }
-
-        public static int MinLength(this ProtocolType p)
-        {
-            return ((ProtocolTypeAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolTypeAttr))).MinLength;
-        }
-
-        public static int MaxLength(this ProtocolType p)
-        {
-            return ((ProtocolTypeAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolTypeAttr))).MaxLength;
-        }
-
-        public static Type Type(this ProtocolType p)
-        {
-            return ((ProtocolTypeAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolTypeAttr))).Type;
-        }
-
-        private static MemberInfo ForValue(ProtocolType p)
-        {
-            return typeof(ProtocolType).GetField(Enum.GetName(typeof(ProtocolType), p));
-        }
     }
 }

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Reflection;
-
-namespace SagePay.IntegrationKit
+﻿namespace SagePay.IntegrationKit
 {
     public enum ProtocolMessage
     {
@@ -625,41 +619,4 @@ namespace SagePay.IntegrationKit
             })]
         CANCEL_REQUEST
     }
-
-    class ProtocolMessageAttribute : Attribute
-    {
-        public ProtocolField[] Required { get; set; }
-        public ProtocolField[] Optional { get; set; }
-
-        public ProtocolMessageAttribute(ProtocolField[] required, ProtocolField[] optional)
-        {
-            this.Required = required;
-            this.Optional = optional;
-        }
-
-        public ProtocolMessageAttribute(ProtocolField[] required)
-        {
-            this.Required = required;
-        }
-
-    }
-
-    public static class ProtocolMessageExtension
-    {
-        public static ProtocolField[] Required(this ProtocolMessage p)
-        {
-            return ((ProtocolMessageAttribute)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolMessageAttribute))).Required;
-        }
-
-        public static ProtocolField[] Optional(this ProtocolMessage p)
-        {
-            return ((ProtocolMessageAttribute)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolMessageAttribute))).Optional;
-        }
-
-        private static MemberInfo ForValue(ProtocolMessage p)
-        {
-            return typeof(ProtocolMessage).GetField(Enum.GetName(typeof(ProtocolMessage), p));
-        }
-    }
-
 }

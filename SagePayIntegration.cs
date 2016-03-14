@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using SagePay.IntegrationKit.Messages;
 using System.Text;
 using System.Collections.Specialized;
@@ -17,7 +16,7 @@ namespace SagePay.IntegrationKit
         public string RequestQueryString { get; set; }
         public string ResponseQueryString { get; set; }
 
-        protected static NameValueCollection mapCols = new NameValueCollection(); 
+        protected static NameValueCollection mapCols = new NameValueCollection();
 
         public SagePayIntegration()
         {
@@ -56,27 +55,26 @@ namespace SagePay.IntegrationKit
                 mapCols.Add("token", "Token");
                 mapCols.Add("PARes", "PaRes");
 
-				mapCols.Add("FiRecipientAcctNumber", "FiRecipientAccountNumber");
-				mapCols.Add("FiRecipientDob", "FiRecipientDateOfBirth");
-				mapCols.Add("FiRecipientPostCode", "FiRecipientPostCode");
-				mapCols.Add("FiRecipientSurname", "FiRecipientSurname");
+                mapCols.Add("FiRecipientAcctNumber", "FiRecipientAccountNumber");
+                mapCols.Add("FiRecipientDob", "FiRecipientDateOfBirth");
+                mapCols.Add("FiRecipientPostCode", "FiRecipientPostCode");
+                mapCols.Add("FiRecipientSurname", "FiRecipientSurname");
             }
         }
 
-        public DataObject ConvertToSagePayMessage(string stringMessage)
+        public static DataObject ConvertToSagePayMessage(string stringMessage)
         {
             DataObject dataObject = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(stringMessage);
+            var msgResponse = HttpUtility.ParseQueryString(stringMessage);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                var propInfo = typeof(DataObject).GetProperty(propName);
                 if (propInfo.PropertyType.IsEnum)
                 {
-                    object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                    var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
                     propInfo.SetValue(dataObject, val, null);
                 }
                 else
@@ -88,14 +86,14 @@ namespace SagePay.IntegrationKit
             return dataObject;
         }
 
-        public NameValueCollection ConvertSagePayMessageToNameValueCollection(ProtocolMessage protocolMessage, Type type, IMessage message, ProtocolVersion protocolVersion)
+        public static NameValueCollection ConvertSagePayMessageToNameValueCollection(ProtocolMessage protocolMessage, Type type, IMessage message, ProtocolVersion protocolVersion)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
 
             foreach (var field in protocolMessage.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = message.GetType().GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = message.GetType().GetProperty(propName);
                 if (propName.Equals("VpsProtocol"))
                     msg.Add(field.CanonicalName(), protocolVersion.VersionString());
                 else
@@ -107,33 +105,31 @@ namespace SagePay.IntegrationKit
 
             foreach (var field in protocolMessage.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = message.GetType().GetProperty(propName);
-                if (propInfo.GetValue(message, null) != null)
-                {
-                    if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
-                        msg.Add(field.CanonicalName(), propInfo.GetValue(message, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = message.GetType().GetProperty(propName);
+                if (propInfo.GetValue(message, null) == null) continue;
+
+                if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
+                    msg.Add(field.CanonicalName(), propInfo.GetValue(message, null).ToString());
             }
 
             return msg;
         }
 
-        public bool CheckSagePayProtocolVersion(Type type, string propertyName , ProtocolVersion protocolVersion)
+        public static bool CheckSagePayProtocolVersion(Type type, string propertyName, ProtocolVersion protocolVersion)
         {
             var interfaces = type.GetInterfaces();
+
             foreach (var @interface in interfaces)
             {
                 foreach (var interfaceProperty in @interface.GetProperties())
                 {
-                    if (interfaceProperty.Name == propertyName)
-                    {
-                        if (interfaceProperty.GetCustomAttributes(typeof(SagePayProtocolVersion), true).Any())
-                        {
-                            SagePayProtocolVersion sagepayProtocolVersion = (SagePayProtocolVersion)interfaceProperty.GetCustomAttributes(typeof(SagePayProtocolVersion), true).FirstOrDefault();
-                            return (protocolVersion.VersionInt() >= sagepayProtocolVersion.Min.VersionInt());
-                        }
-                    }
+                    if (interfaceProperty.Name != propertyName) continue;
+                    if (!interfaceProperty.GetCustomAttributes(typeof(SagePayProtocolVersion), true).Any())
+                        continue;
+
+                    var sagepayProtocolVersion = (SagePayProtocolVersion)interfaceProperty.GetCustomAttributes(typeof(SagePayProtocolVersion), true).FirstOrDefault();
+                    return sagepayProtocolVersion != null && (protocolVersion.VersionInt() >= sagepayProtocolVersion.Min.VersionInt());
                 }
                 return CheckSagePayProtocolVersion(@interface, propertyName, protocolVersion);
             }
@@ -142,28 +138,29 @@ namespace SagePay.IntegrationKit
 
         public NameValueCollection Validation(ProtocolMessage protocolMessage, Type type, IMessage message, ProtocolVersion protocolVersion)
         {
-            NameValueCollection errorMessages = new NameValueCollection();
+            var errorMessages = new NameValueCollection();
 
             foreach (var field in protocolMessage.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = message.GetType().GetProperty(propName);
-                if (!propName.Equals("VpsProtocol"))
-                {
-                    if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
-                        Validate(field, errorMessages, (propInfo.GetValue(message, null) != null ? propInfo.GetValue(message, null).ToString() : string.Empty), true);
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = message.GetType().GetProperty(propName);
+
+                if (propName.Equals("VpsProtocol")) continue;
+
+                if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
+                    Validate(field, errorMessages, (propInfo.GetValue(message, null) != null ? propInfo.GetValue(message, null).ToString() : string.Empty), true);
             }
 
             foreach (var field in protocolMessage.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = message.GetType().GetProperty(propName);
-                if (propInfo.GetValue(message, null) != null && propInfo.GetValue(message, null).ToString() != string.Empty)
-                {
-                    if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
-                        Validate(field, errorMessages, (propInfo.GetValue(message, null) != null ? propInfo.GetValue(message, null).ToString() : string.Empty), false);
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = message.GetType().GetProperty(propName);
+
+                if (propInfo.GetValue(message, null) == null ||
+                    propInfo.GetValue(message, null).ToString() == string.Empty) continue;
+
+                if (CheckSagePayProtocolVersion(type, propName, protocolVersion))
+                    Validate(field, errorMessages, (propInfo.GetValue(message, null) != null ? propInfo.GetValue(message, null).ToString() : string.Empty), false);
             }
 
             return errorMessages;
@@ -171,7 +168,7 @@ namespace SagePay.IntegrationKit
 
 
         public void Validate(ProtocolField field, NameValueCollection errorMessages, string value, bool required)
-        {  
+        {
             if (field.DataType().Type() != null)
             {
                 if (!Enum.IsDefined(field.DataType().Type(), value))
@@ -181,7 +178,7 @@ namespace SagePay.IntegrationKit
             }
             else
             {
-                Regex r = new Regex(field.DataType().ApiRegex().Pattern());
+                var r = new Regex(field.DataType().ApiRegex().Pattern());
 
                 if (!r.IsMatch(value))
                 {
@@ -194,39 +191,35 @@ namespace SagePay.IntegrationKit
         {
             IServerPaymentResult paymentResult = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
-                            propInfo.SetValue(paymentResult, val, null);
-                        }
-                        else
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                            propInfo.SetValue(paymentResult, val, null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(paymentResult, val, null);
                     }
                     else
                     {
-                        if (propName.Equals("PaReq"))
-                        {
-                            propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i).Replace(" ","+"), propInfo.PropertyType), null);
-                        }
-                        else
-                        {
-                            propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                        propInfo.SetValue(paymentResult, val, null);
                     }
+                }
+                else
+                {
+                    propInfo.SetValue(paymentResult,
+                        propName.Equals("PaReq")
+                            ? Convert.ChangeType(msgResponse.Get(i).Replace(" ", "+"), propInfo.PropertyType)
+                            : Convert.ChangeType(msgResponse.Get(i),
+                                Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return paymentResult;
@@ -237,39 +230,33 @@ namespace SagePay.IntegrationKit
         {
             IServerTokenRegisterResult paymentResult = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
-                            propInfo.SetValue(paymentResult, val, null);
-                        }
-                        else
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                            propInfo.SetValue(paymentResult, val, null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(paymentResult, val, null);
                     }
                     else
                     {
-                        if (propName.Equals("PaReq"))
-                        {
-                            propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i).Replace(" ", "+"), propInfo.PropertyType), null);
-                        }
-                        else
-                        {
-                            propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                        }
+                        object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                        propInfo.SetValue(paymentResult, val, null);
                     }
+                }
+                else
+                {
+                    propInfo.SetValue(paymentResult,
+                        propName.Equals("PaReq")
+                            ? Convert.ChangeType(msgResponse.Get(i).Replace(" ", "+"), propInfo.PropertyType)
+                            : Convert.ChangeType(msgResponse.Get(i),
+                                Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return paymentResult;
@@ -279,34 +266,33 @@ namespace SagePay.IntegrationKit
         {
             IServerNotificationRequest message = new DataObject();
 
-            NameValueCollection RequestFormsValues = HttpContext.Current.Request.Form;
+            var requestFormsValues = HttpContext.Current.Request.Form;
 
-            for (int i = 0; i < RequestFormsValues.Count; i++)
+            for (var i = 0; i < requestFormsValues.Count; i++)
             {
-                string propName = mapCols[RequestFormsValues.GetKey(i)] == null ? RequestFormsValues.GetKey(i) : mapCols[RequestFormsValues.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[requestFormsValues.GetKey(i)] ?? requestFormsValues.GetKey(i);
+
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo == null) continue;
+
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo != null)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propInfo.PropertyType.IsEnum)
-                        {
-                            if (propName.Equals("VpsProtocol"))
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, "V_" + RequestFormsValues.Get(i).Replace(".", ""));
-                                propInfo.SetValue(message, val, null);
-                            }
-                            else
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, RequestFormsValues.Get(i));
-                                propInfo.SetValue(message, val, null);
-                            }
-                        }
-                        else
-                        {
-                            propInfo.SetValue(message, Convert.ChangeType(RequestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + requestFormsValues.Get(i).Replace(".", ""));
+                        propInfo.SetValue(message, val, null);
                     }
+                    else
+                    {
+                        var val = Enum.Parse(propInfo.PropertyType, requestFormsValues.Get(i));
+                        propInfo.SetValue(message, val, null);
+                    }
+                }
+                else
+                {
+                    propInfo.SetValue(message, Convert.ChangeType(requestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
 
@@ -327,65 +313,63 @@ namespace SagePay.IntegrationKit
 
         public IServerTokenRegisterResult GetServerTokenRegisterRequest(IServerTokenRegisterRequest serverPaymentRequest, string url)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
+
             foreach (var field in ProtocolMessage.SERVER_TOKEN_REGISTER.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), serverPaymentRequest.VpsProtocol.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(serverPaymentRequest, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? serverPaymentRequest.VpsProtocol.VersionString()
+                        : propInfo.GetValue(serverPaymentRequest, null).ToString());
             }
 
             foreach (var field in ProtocolMessage.SERVER_TOKEN_REGISTER.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
                 if (propInfo.GetValue(serverPaymentRequest, null) != null)
                     msg.Add(field.CanonicalName(), propInfo.GetValue(serverPaymentRequest, null).ToString());
             }
 
             RequestQueryString = BuildQueryString(msg);
-			ResponseQueryString = ProcessWebRequestToSagePay(url, RequestQueryString);
+            ResponseQueryString = ProcessWebRequestToSagePay(url, RequestQueryString);
             return GetServerTokenRegisterResult(ResponseQueryString);
         }
 
         public IServerPaymentResult GetServerPaymentRequest(IServerPayment serverPaymentRequest, string url)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
             foreach (var field in ProtocolMessage.SERVER_PAYMENT.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), serverPaymentRequest.VpsProtocol.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(serverPaymentRequest, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? serverPaymentRequest.VpsProtocol.VersionString()
+                        : propInfo.GetValue(serverPaymentRequest, null).ToString());
             }
 
             foreach (var field in ProtocolMessage.SERVER_PAYMENT.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
                 if (propInfo.GetValue(serverPaymentRequest, null) != null)
                     msg.Add(field.CanonicalName(), propInfo.GetValue(serverPaymentRequest, null).ToString());
             }
 
-            //ServerPayment = serverPaymentRequest;
             RequestQueryString = BuildQueryString(msg);
-			ResponseQueryString = ProcessWebRequestToSagePay(url, RequestQueryString);
+            ResponseQueryString = ProcessWebRequestToSagePay(url, RequestQueryString);
             return GetServerPaymentResult(ResponseQueryString);
         }
 
         public string BuildQueryString(NameValueCollection msg)
         {
-            StringBuilder sb = new StringBuilder();
-            foreach (string key in msg.AllKeys)
+            var sb = new StringBuilder();
+            foreach (var key in msg.AllKeys)
             {
                 if (sb.Length > 0) sb.AppendFormat("&");
                 sb.AppendFormat("{0}={1}", key, msg[key]);      // NB : we don't encode the value bit -- this is for historic backward compatibility
@@ -395,33 +379,30 @@ namespace SagePay.IntegrationKit
 
         public string BuildQueryString(IMessage request, ProtocolMessage protocolMessage, ProtocolVersion protocolVersion)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
 
             foreach (var field in protocolMessage.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), protocolVersion.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(request, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? protocolVersion.VersionString()
+                        : propInfo.GetValue(request, null).ToString());
             }
 
-            if (protocolMessage.Optional() != null)
+            if (protocolMessage.Optional() == null) return BuildQueryString(msg);
+
+            foreach (var field in protocolMessage.Optional())
             {
-                foreach (var field in protocolMessage.Optional())
-                {
-                    string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propName.Equals("VpsProtocol"))
-                        msg.Add(field.CanonicalName(), protocolVersion.VersionString());
-                    else
-                    {
-                        msg.Add(field.CanonicalName(), propInfo.GetValue(request, null).ToString());
-                    }
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? protocolVersion.VersionString()
+                        : propInfo.GetValue(request, null).ToString());
             }
 
             return BuildQueryString(msg);
@@ -448,29 +429,28 @@ namespace SagePay.IntegrationKit
 
         public IDirectPaymentResult ProcessDirectPaymentRequest(IDirectPayment paymentRequest, string directPaymentUrl)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
 
             foreach (var field in ProtocolMessage.DIRECT_PAYMENT.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), paymentRequest.VpsProtocol.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(paymentRequest, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? paymentRequest.VpsProtocol.VersionString()
+                        : propInfo.GetValue(paymentRequest, null).ToString());
             }
 
             foreach (var field in ProtocolMessage.DIRECT_PAYMENT.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
                 if (propInfo.GetValue(paymentRequest, null) != null)
                     msg.Add(field.CanonicalName(), propInfo.GetValue(paymentRequest, null).ToString());
             }
 
-            //DirectPayment = paymentRequest;
             RequestQueryString = BuildQueryString(msg);
             ResponseQueryString = ProcessWebRequestToSagePay(directPaymentUrl, RequestQueryString);
             return GetDirectPaymentResult(ResponseQueryString);
@@ -478,24 +458,24 @@ namespace SagePay.IntegrationKit
 
         public IDirectTokenResult ProcessDirectTokenRequest(IDirectTokenRegisterRequest request, string directTokenRegisterUrl)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
 
             foreach (var field in ProtocolMessage.DIRECT_TOKEN_REGISTER.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), request.VpsProtocol.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(request, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? request.VpsProtocol.VersionString()
+                        : propInfo.GetValue(request, null).ToString());
             }
 
             foreach (var field in ProtocolMessage.DIRECT_TOKEN_REGISTER.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
                 if (propInfo.GetValue(request, null) != null)
                     msg.Add(field.CanonicalName(), propInfo.GetValue(request, null).ToString());
             }
@@ -507,29 +487,27 @@ namespace SagePay.IntegrationKit
 
         public IDirectPaymentResult ProcessDirectPayPalRequest(IPayPalCompleteRequest paymentRequest, string directPayPalCompleteUrl)
         {
-            NameValueCollection msg = new NameValueCollection();
+            var msg = new NameValueCollection();
 
             foreach (var field in ProtocolMessage.PAY_PAL_COMPLETE_REQUEST.Required())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                if (propName.Equals("VpsProtocol"))
-                    msg.Add(field.CanonicalName(), paymentRequest.VpsProtocol.VersionString());
-                else
-                {
-                    msg.Add(field.CanonicalName(), propInfo.GetValue(paymentRequest, null).ToString());
-                }
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
+
+                msg.Add(field.CanonicalName(),
+                    propName.Equals("VpsProtocol")
+                        ? paymentRequest.VpsProtocol.VersionString()
+                        : propInfo.GetValue(paymentRequest, null).ToString());
             }
 
             foreach (var field in ProtocolMessage.PAY_PAL_COMPLETE_REQUEST.Optional())
             {
-                string propName = mapCols[field.CanonicalName()] == null ? field.CanonicalName() : mapCols[field.CanonicalName()];
-                PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
+                var propName = mapCols[field.CanonicalName()] ?? field.CanonicalName();
+                var propInfo = typeof(DataObject).GetProperty(propName);
                 if (propInfo.GetValue(paymentRequest, null) != null)
                     msg.Add(field.CanonicalName(), propInfo.GetValue(paymentRequest, null).ToString());
             }
 
-            //DirectPayment = paymentRequest;
             RequestQueryString = BuildQueryString(msg);
             ResponseQueryString = ProcessWebRequestToSagePay(directPayPalCompleteUrl, RequestQueryString);
             return GetDirectPaymentResult(ResponseQueryString);
@@ -539,40 +517,37 @@ namespace SagePay.IntegrationKit
         {
             IDirectPaymentResult paymentResult = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(paymentResult, val, null);
+                    }
+                    else
+                    {
+                        if (propName.Equals("Status") && msgResponse.Get(i).Equals("3DAUTH"))
                         {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                            var val = Enum.Parse(propInfo.PropertyType, "THREEDAUTH");
                             propInfo.SetValue(paymentResult, val, null);
                         }
                         else
                         {
-                            if (propName.Equals("Status") && msgResponse.Get(i).Equals("3DAUTH"))
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, "THREEDAUTH");
-                                propInfo.SetValue(paymentResult, val, null);
-                            }
-                            else
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                                propInfo.SetValue(paymentResult, val, null);
-                            }
+                            var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                            propInfo.SetValue(paymentResult, val, null);
                         }
                     }
-                    else
-                    {
-                        propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                    }
+                }
+                else
+                {
+                    propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return paymentResult;
@@ -582,79 +557,73 @@ namespace SagePay.IntegrationKit
         {
             IDirectTokenResult paymentResult = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(paymentResult, val, null);
+                    }
+                    else
+                    {
+                        if (propName.Equals("Status") && msgResponse.Get(i).Equals("3DAUTH"))
                         {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                            var val = Enum.Parse(propInfo.PropertyType, "THREEDAUTH");
                             propInfo.SetValue(paymentResult, val, null);
                         }
                         else
                         {
-                            if (propName.Equals("Status") && msgResponse.Get(i).Equals("3DAUTH"))
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, "THREEDAUTH");
-                                propInfo.SetValue(paymentResult, val, null);
-                            }
-                            else
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                                propInfo.SetValue(paymentResult, val, null);
-                            }
+                            var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                            propInfo.SetValue(paymentResult, val, null);
                         }
                     }
-                    else
-                    {
-                        propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                    }
+                }
+                else
+                {
+                    propInfo.SetValue(paymentResult, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return paymentResult;
         }
 
-
-
         public IPayPalNotificationRequest GetPayPalNotificationRequest()
         {
             IPayPalNotificationRequest message = new DataObject();
 
-            NameValueCollection RequestFormsValues = HttpContext.Current.Request.QueryString;
+            var requestFormsValues = HttpContext.Current.Request.QueryString;
 
-            for (int i = 0; i < RequestFormsValues.Count; i++)
+            for (var i = 0; i < requestFormsValues.Count; i++)
             {
-                string propName = mapCols[RequestFormsValues.GetKey(i)] == null ? RequestFormsValues.GetKey(i) : mapCols[RequestFormsValues.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[requestFormsValues.GetKey(i)] ?? requestFormsValues.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo == null) continue;
+
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo != null)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propInfo.PropertyType.IsEnum)
-                        {
-                            if (propName.Equals("VpsProtocol"))
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, "V_" + RequestFormsValues.Get(i).Replace(".", ""));
-                                propInfo.SetValue(message, val, null);
-                            }
-                            else
-                            {
-                                object val = Enum.Parse(propInfo.PropertyType, RequestFormsValues.Get(i));
-                                propInfo.SetValue(message, val, null);
-                            }
-                        }
-                        else
-                        {
-                            propInfo.SetValue(message, Convert.ChangeType(RequestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + requestFormsValues.Get(i).Replace(".", ""));
+                        propInfo.SetValue(message, val, null);
                     }
+                    else
+                    {
+                        var val = Enum.Parse(propInfo.PropertyType, requestFormsValues.Get(i));
+                        propInfo.SetValue(message, val, null);
+                    }
+                }
+                else
+                {
+                    propInfo.SetValue(message, Convert.ChangeType(requestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
 
@@ -663,33 +632,31 @@ namespace SagePay.IntegrationKit
 
         public string ProcessWebRequestToSagePay(string url, string postData)
         {
-			Debug.WriteLine(string.Format("To Gateway : {0} <= {1}", url, postData));
+            Debug.WriteLine("To Gateway : {0} <= {1}", url, postData);
 
-            string returnResponse = string.Empty;
-            UTF8Encoding objUTFEncode = new UTF8Encoding();
-            byte[] arrRequest = null;
-            Stream objStreamReq = default(Stream);
-            StreamReader objStreamRes = default(StreamReader);
-            HttpWebRequest objHttpRequest = default(HttpWebRequest);
-            HttpWebResponse objHttpResponse = default(HttpWebResponse);
-            Uri objUri = new Uri(url);
+            var objUtfEncode = new UTF8Encoding();
+            var objUri = new Uri(url);
 
-            objHttpRequest = (HttpWebRequest)HttpWebRequest.Create(objUri);
+            var objHttpRequest = (HttpWebRequest)WebRequest.Create(objUri);
             objHttpRequest.KeepAlive = false;
             objHttpRequest.Method = "POST";
 
             objHttpRequest.ContentType = "application/x-www-form-urlencoded";
-            arrRequest = objUTFEncode.GetBytes(postData);
+            var arrRequest = objUtfEncode.GetBytes(postData);
             objHttpRequest.ContentLength = arrRequest.Length;
-            objStreamReq = objHttpRequest.GetRequestStream();
+            var objStreamReq = objHttpRequest.GetRequestStream();
             objStreamReq.Write(arrRequest, 0, arrRequest.Length);
             objStreamReq.Close();
 
             //Get response
-            objHttpResponse = (HttpWebResponse)objHttpRequest.GetResponse();
-            objStreamRes = new StreamReader(objHttpResponse.GetResponseStream(), Encoding.ASCII);
+            var objHttpResponse = (HttpWebResponse)objHttpRequest.GetResponse();
 
-            returnResponse = objStreamRes.ReadToEnd();
+            var stream = objHttpResponse.GetResponseStream();
+            if (stream == null) return null;
+
+            var objStreamRes = new StreamReader(stream, Encoding.ASCII);
+
+            var returnResponse = objStreamRes.ReadToEnd();
             objStreamRes.Close();
 
             returnResponse = returnResponse.Replace("\r\n", "&");
@@ -703,32 +670,30 @@ namespace SagePay.IntegrationKit
         {
             ICaptureResult result = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
-                            propInfo.SetValue(result, val, null);
-                        }
-                        else
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                            propInfo.SetValue(result, val, null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(result, val, null);
                     }
                     else
                     {
-                        propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
+                        var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                        propInfo.SetValue(result, val, null);
                     }
+                }
+                else
+                {
+                    propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return result;
@@ -738,32 +703,30 @@ namespace SagePay.IntegrationKit
         {
             IRefundResult result = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
-                            propInfo.SetValue(result, val, null);
-                        }
-                        else
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                            propInfo.SetValue(result, val, null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(result, val, null);
                     }
                     else
                     {
-                        propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
+                        var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                        propInfo.SetValue(result, val, null);
                     }
+                }
+                else
+                {
+                    propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return result;
@@ -773,32 +736,30 @@ namespace SagePay.IntegrationKit
         {
             IBasicResult result = new DataObject();
 
-            NameValueCollection msgResponse = new NameValueCollection();
-            msgResponse = System.Web.HttpUtility.ParseQueryString(resultQueryString);
+            var msgResponse = HttpUtility.ParseQueryString(resultQueryString);
 
-            for (int i = 0; i < msgResponse.Count; i++)
+            for (var i = 0; i < msgResponse.Count; i++)
             {
-                string propName = mapCols[msgResponse.GetKey(i)] == null ? msgResponse.GetKey(i) : mapCols[msgResponse.GetKey(i)];
-                if (!string.IsNullOrEmpty(propName))
+                var propName = mapCols[msgResponse.GetKey(i)] ?? msgResponse.GetKey(i);
+                if (string.IsNullOrEmpty(propName)) continue;
+
+                var propInfo = typeof(DataObject).GetProperty(propName);
+                if (propInfo.PropertyType.IsEnum)
                 {
-                    PropertyInfo propInfo = typeof(DataObject).GetProperty(propName);
-                    if (propInfo.PropertyType.IsEnum)
+                    if (propName.Equals("VpsProtocol"))
                     {
-                        if (propName.Equals("VpsProtocol"))
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
-                            propInfo.SetValue(result, val, null);
-                        }
-                        else
-                        {
-                            object val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
-                            propInfo.SetValue(result, val, null);
-                        }
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + msgResponse.Get(i).Replace(".", ""));
+                        propInfo.SetValue(result, val, null);
                     }
                     else
                     {
-                        propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
+                        var val = Enum.Parse(propInfo.PropertyType, msgResponse.Get(i));
+                        propInfo.SetValue(result, val, null);
                     }
+                }
+                else
+                {
+                    propInfo.SetValue(result, Convert.ChangeType(msgResponse.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
             return result;

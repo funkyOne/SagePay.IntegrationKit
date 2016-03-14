@@ -1,6 +1,4 @@
-﻿using SagePay.IntegrationKit;
-
-namespace SagePay.IntegrationKit.Messages
+﻿namespace SagePay.IntegrationKit.Messages
 {
     public interface IPaymentResult : IBasicResult
     {

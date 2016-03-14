@@ -1,15 +1,8 @@
-﻿using SagePay.IntegrationKit;
-
-namespace SagePay.IntegrationKit.Messages
+﻿namespace SagePay.IntegrationKit.Messages
 {
-
     public interface IThreeDAuthRequest : IMessage
     {
-
         string Md { get; set; }
-
         string PaRes { get; set; }
-
     }
-
 }

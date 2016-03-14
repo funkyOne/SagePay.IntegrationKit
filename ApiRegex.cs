@@ -1,30 +1,5 @@
-﻿using System;
-using System.Reflection;
-namespace SagePay.IntegrationKit
+﻿namespace SagePay.IntegrationKit
 {
-    class ApiRegexAttr : Attribute
-    {
-        internal ApiRegexAttr(string pattern)
-        {
-            this.Pattern = pattern;
-        }
-        public string Pattern { get; private set; }
-    }
-
-    public static class ApiRegexExtension
-    {
-        public static string Pattern(this ApiRegex p)
-        {
-            return ((ApiRegexAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ApiRegexAttr))).Pattern;
-        }
-
-        private static MemberInfo ForValue(ApiRegex p)
-        {
-            return typeof(ApiRegex).GetField(Enum.GetName(typeof(ApiRegex), p));
-        }
-    }
-
-
     public enum ApiRegex
     {
         [ApiRegexAttr("\\d\\.\\d{2}")]

@@ -1,9 +1,5 @@
-﻿using SagePay.IntegrationKit;
-using System;
-
-namespace SagePay.IntegrationKit.Messages
+﻿namespace SagePay.IntegrationKit.Messages
 {
-
     public interface IPaymentStatusResult : IBasicResult
     {
         string VpsTxId { get; set; }

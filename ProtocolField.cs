@@ -1,10 +1,5 @@
-﻿using System;
-using System.Reflection;
-using SagePay.IntegrationKit;
-
-namespace SagePay.IntegrationKit
+﻿namespace SagePay.IntegrationKit
 {
-
     public enum ProtocolField
     {
         [ProtocolFieldAttr("VPSProtocol", ProtocolType.VPSPROTOCOL)]
@@ -218,35 +213,5 @@ namespace SagePay.IntegrationKit
 
         [ProtocolFieldAttr("FiRecipientSurname", ProtocolType.CUSTOMER_NAME)]
         FI_RECIPIENT_SURNAME,
-
-    }
-
-    class ProtocolFieldAttr : Attribute
-    {
-        internal ProtocolFieldAttr(string canonicalName, ProtocolType dataType)
-        {
-            this.CanonicalName = canonicalName;
-            this.DataType = dataType;
-        }
-        public string CanonicalName { get; private set; }
-        public ProtocolType DataType { get; private set; }
-    }
-
-    public static class ProtocolFieldExtension
-    {
-        public static string CanonicalName(this ProtocolField p)
-        {
-            return ((ProtocolFieldAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolFieldAttr))).CanonicalName;
-        }
-
-        public static ProtocolType DataType(this ProtocolField p)
-        {
-            return ((ProtocolFieldAttr)Attribute.GetCustomAttribute(ForValue(p), typeof(ProtocolFieldAttr))).DataType;
-        }
-
-        private static MemberInfo ForValue(ProtocolField p)
-        {
-            return typeof(ProtocolField).GetField(Enum.GetName(typeof(ProtocolField), p));
-        }
     }
 }
