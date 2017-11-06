@@ -8,6 +8,7 @@ using System.IO;
 using System.Net;
 using System.Web;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
 
 namespace SagePay.IntegrationKit
 {
@@ -262,15 +263,16 @@ namespace SagePay.IntegrationKit
             return paymentResult;
         }
 
-        public IServerNotificationRequest GetServerNotificationRequest()
+        public IServerNotificationRequest GetServerNotificationRequest(IFormCollection form)
         {
             IServerNotificationRequest message = new DataObject();
 
-            var requestFormsValues = HttpContext.Current.Request.Form;
-
-            for (var i = 0; i < requestFormsValues.Count; i++)
+            foreach (var kv in form)
             {
-                var propName = mapCols[requestFormsValues.GetKey(i)] ?? requestFormsValues.GetKey(i);
+                var key = kv.Key;
+                var value = kv.Value.First();
+
+                var propName = mapCols[key] ?? key;
 
                 if (string.IsNullOrEmpty(propName)) continue;
 
@@ -281,18 +283,18 @@ namespace SagePay.IntegrationKit
                 {
                     if (propName.Equals("VpsProtocol"))
                     {
-                        var val = Enum.Parse(propInfo.PropertyType, "V_" + requestFormsValues.Get(i).Replace(".", ""));
+                        var val = Enum.Parse(propInfo.PropertyType, "V_" + value.Replace(".", ""));
                         propInfo.SetValue(message, val, null);
                     }
                     else
                     {
-                        var val = Enum.Parse(propInfo.PropertyType, requestFormsValues.Get(i));
+                        var val = Enum.Parse(propInfo.PropertyType, value);
                         propInfo.SetValue(message, val, null);
                     }
                 }
                 else
                 {
-                    propInfo.SetValue(message, Convert.ChangeType(requestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
+                    propInfo.SetValue(message, Convert.ChangeType(value, Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
                 }
             }
 
@@ -594,41 +596,41 @@ namespace SagePay.IntegrationKit
             return paymentResult;
         }
 
-        public IPayPalNotificationRequest GetPayPalNotificationRequest()
-        {
-            IPayPalNotificationRequest message = new DataObject();
+        //public IPayPalNotificationRequest GetPayPalNotificationRequest()
+        //{
+        //    IPayPalNotificationRequest message = new DataObject();
 
-            var requestFormsValues = HttpContext.Current.Request.QueryString;
+        //    var requestFormsValues = HttpContext.Current.Request.QueryString;
 
-            for (var i = 0; i < requestFormsValues.Count; i++)
-            {
-                var propName = mapCols[requestFormsValues.GetKey(i)] ?? requestFormsValues.GetKey(i);
-                if (string.IsNullOrEmpty(propName)) continue;
+        //    for (var i = 0; i < requestFormsValues.Count; i++)
+        //    {
+        //        var propName = mapCols[requestFormsValues.GetKey(i)] ?? requestFormsValues.GetKey(i);
+        //        if (string.IsNullOrEmpty(propName)) continue;
 
-                var propInfo = typeof(DataObject).GetProperty(propName);
-                if (propInfo == null) continue;
+        //        var propInfo = typeof(DataObject).GetProperty(propName);
+        //        if (propInfo == null) continue;
 
-                if (propInfo.PropertyType.IsEnum)
-                {
-                    if (propName.Equals("VpsProtocol"))
-                    {
-                        var val = Enum.Parse(propInfo.PropertyType, "V_" + requestFormsValues.Get(i).Replace(".", ""));
-                        propInfo.SetValue(message, val, null);
-                    }
-                    else
-                    {
-                        var val = Enum.Parse(propInfo.PropertyType, requestFormsValues.Get(i));
-                        propInfo.SetValue(message, val, null);
-                    }
-                }
-                else
-                {
-                    propInfo.SetValue(message, Convert.ChangeType(requestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
-                }
-            }
+        //        if (propInfo.PropertyType.IsEnum)
+        //        {
+        //            if (propName.Equals("VpsProtocol"))
+        //            {
+        //                var val = Enum.Parse(propInfo.PropertyType, "V_" + requestFormsValues.Get(i).Replace(".", ""));
+        //                propInfo.SetValue(message, val, null);
+        //            }
+        //            else
+        //            {
+        //                var val = Enum.Parse(propInfo.PropertyType, requestFormsValues.Get(i));
+        //                propInfo.SetValue(message, val, null);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            propInfo.SetValue(message, Convert.ChangeType(requestFormsValues.Get(i), Nullable.GetUnderlyingType(propInfo.PropertyType) ?? propInfo.PropertyType), null);
+        //        }
+        //    }
 
-            return message;
-        }
+        //    return message;
+        //}
 
         public string ProcessWebRequestToSagePay(string url, string postData)
         {
